@@ -3,6 +3,7 @@ import type { Knex } from "knex";
 import { db } from "@/database/knex";
 import type {
   CreateWalletData,
+  FindTransferWalletsData,
   UpdateWalletBalanceData,
   WalletRecord,
 } from "@/modules/wallets/wallets.types";
@@ -46,6 +47,20 @@ export class WalletsRepository {
       .first();
 
     return wallet ?? null;
+  }
+
+  public async findTransferWalletsForUpdate(
+    trx: Knex.Transaction,
+    data: FindTransferWalletsData
+  ): Promise<WalletRecord[]> {
+    return trx<WalletRecord>("wallets")
+      .where((query) => {
+        query
+          .where("user_id", data.senderUserId)
+          .orWhere("account_number", data.recipientAccountNumber);
+      })
+      .orderBy("id", "asc")
+      .forUpdate();
   }
 
   public async create(trx: Knex.Transaction, wallet: CreateWalletData): Promise<void> {

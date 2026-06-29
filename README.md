@@ -19,6 +19,7 @@ This project is currently an in-progress implementation of a basic wallet system
 - User signup endpoint
 - User signin endpoint
 - Authenticated wallet funding endpoint
+- Authenticated wallet transfer endpoint
 - Authenticated wallet withdrawal endpoint
 - Authenticated transaction history endpoint
 - Faux token generation during signup
@@ -248,6 +249,69 @@ Successful response:
 ```
 
 `amount` is sent in kobo. Funding locks the authenticated user's wallet, updates the wallet balance, and creates a wallet transaction record in one database transaction.
+
+### Transfer Funds
+
+```http
+POST /wallets/transfer
+Authorization: Bearer demo_generated_auth_token
+```
+
+Request:
+
+```json
+{
+  "recipient_account_number": "1234567891",
+  "amount": 200000,
+  "description": "Test transfer"
+}
+```
+
+Successful response:
+
+```json
+{
+  "status": "success",
+  "message": "Transfer successful.",
+  "data": {
+    "sender_wallet": {
+      "id": "sender-wallet-id",
+      "account_number": "1234567890",
+      "balance": 300000,
+      "currency": "NGN"
+    },
+    "recipient_wallet": {
+      "id": "recipient-wallet-id",
+      "account_number": "1234567891",
+      "currency": "NGN"
+    },
+    "transactions": {
+      "debit": {
+        "id": "sender-transaction-id",
+        "type": "transfer_out",
+        "amount": 200000,
+        "balance_before": 500000,
+        "balance_after": 300000,
+        "reference": "TRO_generated-reference",
+        "status": "successful",
+        "description": "Test transfer"
+      },
+      "credit": {
+        "id": "recipient-transaction-id",
+        "type": "transfer_in",
+        "amount": 200000,
+        "balance_before": 0,
+        "balance_after": 200000,
+        "reference": "TRI_generated-reference",
+        "status": "successful",
+        "description": "Test transfer"
+      }
+    }
+  }
+}
+```
+
+Transfers lock the sender and recipient wallets, reject self-transfers, check the sender's available balance, update both wallet balances, and create linked debit and credit transaction records in one database transaction.
 
 ### Withdraw Funds
 

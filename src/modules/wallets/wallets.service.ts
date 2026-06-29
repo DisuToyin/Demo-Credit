@@ -7,6 +7,8 @@ import { WalletsRepository } from "@/modules/wallets/wallets.repository";
 import type {
   FundWalletRequestBody,
   FundWalletResult,
+  TransferFundsRequestBody,
+  TransferFundsResult,
   WalletRecord,
   WithdrawWalletRequestBody,
   WithdrawWalletResult,
@@ -120,6 +122,124 @@ export class WalletsService {
     });
   }
 
+  public async transferFunds(
+    userId: string,
+    payload: TransferFundsRequestBody
+  ): Promise<TransferFundsResult> {
+    return db.transaction(async (trx) => {
+      const wallets = await this.walletsRepository.findTransferWalletsForUpdate(trx, {
+        senderUserId: userId,
+        recipientAccountNumber: payload.recipient_account_number,
+      });
+
+      const senderWallet = wallets.find((wallet) => wallet.user_id === userId) ?? null;
+      const recipientWallet =
+        wallets.find(
+          (wallet) => wallet.account_number === payload.recipient_account_number
+        ) ?? null;
+
+      if (!senderWallet) {
+        throw new AppError("Wallet not found.", 404, "WALLET_NOT_FOUND");
+      }
+
+      if (!recipientWallet) {
+        throw new AppError(
+          "Recipient wallet not found.",
+          404,
+          "RECIPIENT_WALLET_NOT_FOUND"
+        );
+      }
+
+      if (senderWallet.id === recipientWallet.id) {
+        throw new AppError(
+          "You cannot transfer funds to the same wallet.",
+          400,
+          "SELF_TRANSFER_NOT_ALLOWED"
+        );
+      }
+
+      const senderBalanceBefore = Number(senderWallet.balance);
+
+      if (senderBalanceBefore < payload.amount) {
+        throw new AppError("Insufficient wallet balance.", 400, "INSUFFICIENT_FUNDS");
+      }
+
+      const recipientBalanceBefore = Number(recipientWallet.balance);
+      const senderBalanceAfter = senderBalanceBefore - payload.amount;
+      const recipientBalanceAfter = recipientBalanceBefore + payload.amount;
+      const description = payload.description ?? null;
+
+      const debitTransaction = this.buildTransferOutTransaction(
+        senderWallet,
+        recipientWallet,
+        payload.amount,
+        senderBalanceBefore,
+        senderBalanceAfter,
+        description
+      );
+      const creditTransaction = this.buildTransferInTransaction(
+        recipientWallet,
+        senderWallet,
+        debitTransaction.id,
+        payload.amount,
+        recipientBalanceBefore,
+        recipientBalanceAfter,
+        description
+      );
+
+      await this.walletsRepository.updateBalance(trx, {
+        walletId: senderWallet.id,
+        balance: senderBalanceAfter,
+      });
+      await this.walletsRepository.updateBalance(trx, {
+        walletId: recipientWallet.id,
+        balance: recipientBalanceAfter,
+      });
+      await this.transactionsRepository.create(trx, debitTransaction);
+      await this.transactionsRepository.create(trx, creditTransaction);
+      await this.transactionsRepository.updateRelatedTransactionId(trx, {
+        transactionId: debitTransaction.id,
+        relatedTransactionId: creditTransaction.id,
+      });
+
+      return {
+        sender_wallet: {
+          id: senderWallet.id,
+          account_number: senderWallet.account_number,
+          balance: senderBalanceAfter,
+          currency: senderWallet.currency,
+        },
+        recipient_wallet: {
+          id: recipientWallet.id,
+          account_number: recipientWallet.account_number,
+          currency: recipientWallet.currency,
+        },
+        transactions: {
+          debit: {
+            id: debitTransaction.id,
+            type: "transfer_out",
+            amount: debitTransaction.amount,
+            balance_before: debitTransaction.balance_before,
+            balance_after: debitTransaction.balance_after,
+            reference: debitTransaction.reference,
+            status: "successful",
+            description: debitTransaction.description,
+          },
+          credit: {
+            id: creditTransaction.id,
+            type: "transfer_in",
+            amount: creditTransaction.amount,
+            balance_before: creditTransaction.balance_before,
+            balance_after: creditTransaction.balance_after,
+            reference: creditTransaction.reference,
+            status: "successful",
+            description: creditTransaction.description,
+          },
+        },
+      };
+    });
+  }
+
   private buildFundTransaction(
     wallet: WalletRecord,
     amount: number,
@@ -163,6 +283,57 @@ export class WalletsService {
       reference: `WDR_${transactionId}`,
       related_transaction_id: null,
       counterparty_wallet_id: null,
+      status: "successful",
+      description,
+    };
+  }
+
+  private buildTransferOutTransaction(
+    senderWallet: WalletRecord,
+    recipientWallet: WalletRecord,
+    amount: number,
+    balanceBefore: number,
+    balanceAfter: number,
+    description: string | null
+  ): CreateWalletTransactionData {
+    const transactionId = randomUUID();
+
+    return {
+      id: transactionId,
+      wallet_id: senderWallet.id,
+      type: "transfer_out",
+      amount,
+      balance_before: balanceBefore,
+      balance_after: balanceAfter,
+      reference: `TRO_${transactionId}`,
+      related_transaction_id: null,
+      counterparty_wallet_id: recipientWallet.id,
+      status: "successful",
+      description,
+    };
+  }
+
+  private buildTransferInTransaction(
+    recipientWallet: WalletRecord,
+    senderWallet: WalletRecord,
+    relatedTransactionId: string,
+    amount: number,
+    balanceBefore: number,
+    balanceAfter: number,
+    description: string | null
+  ): CreateWalletTransactionData {
+    const transactionId = randomUUID();
+
+    return {
+      id: transactionId,
+      wallet_id: recipientWallet.id,
+      type: "transfer_in",
+      amount,
+      balance_before: balanceBefore,
+      balance_after: balanceAfter,
+      reference: `TRI_${transactionId}`,
+      related_transaction_id: relatedTransactionId,
+      counterparty_wallet_id: senderWallet.id,
       status: "successful",
       description,
     };

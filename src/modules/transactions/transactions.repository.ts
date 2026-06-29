@@ -17,6 +17,15 @@ export class TransactionsRepository {
     await trx<WalletTransactionRecord>("wallet_transactions").insert(transaction);
   }
 
+  public async updateRelatedTransactionId(
+    trx: Knex.Transaction,
+    data: { transactionId: string; relatedTransactionId: string }
+  ): Promise<void> {
+    await trx<WalletTransactionRecord>("wallet_transactions")
+      .where("id", data.transactionId)
+      .update({ related_transaction_id: data.relatedTransactionId });
+  }
+
   public async listByWalletId(
     trx: Knex.Transaction | null,
     data: ListWalletTransactionsData
