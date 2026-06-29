@@ -1,0 +1,216 @@
+# Demo Credit
+
+Demo Credit wallet service built with Node.js, TypeScript, Express, Knex, and MySQL.
+
+This project is currently an in-progress implementation of a basic wallet system. The foundation, database schema, health endpoint, signup flow, Karma blacklist check, and wallet creation during onboarding have been implemented.
+
+## Tech Stack
+
+- Node.js
+- TypeScript
+- Express 5
+- MySQL
+- Knex
+- Zod
+
+## Current Features
+
+- Health check endpoint
+- User signup endpoint
+- Lendsqr Adjutor Karma blacklist check before onboarding
+- User and wallet creation in a single database transaction
+- TypeScript Knex configuration and migrations
+- Centralized error response middleware
+- Reusable success response helper
+- Zod request validation
+- Path aliases with `@/*`
+
+## Project Structure
+
+```txt
+src/
+  config/
+  database/
+    migrations/
+  middlewares/
+  modules/
+    health/
+    karma/
+    users/
+    wallets/
+  routes/
+  utils/
+  app.ts
+  server.ts
+```
+
+## Setup
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create your local environment file:
+
+```bash
+cp .env.example .env
+```
+
+Update `.env` with your MySQL and Adjutor values.
+
+## Environment Variables
+
+```env
+PORT=5000
+HOST=127.0.0.1
+NODE_ENV=development
+
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=
+DB_NAME=lendsqr
+DB_POOL_MIN=2
+DB_POOL_MAX=10
+
+ADJUTOR_BASE_URL=https://adjutor.lendsqr.com/v2
+ADJUTOR_API_KEY=
+```
+
+`ADJUTOR_API_KEY` is required for signup because the API must reject users found on the Karma blacklist.
+
+## Scripts
+
+```bash
+npm run dev
+npm run build
+npm start
+```
+
+Database scripts:
+
+```bash
+npm run db:migrate
+npm run db:rollback
+npm run db:make -- migration_name
+npm run db:seed
+npm run db:seed:make -- seed_name
+```
+
+Knex uses `knexfile.ts`, and migrations are TypeScript files under `src/database/migrations`.
+
+## API Endpoints
+
+### Health Check
+
+```http
+GET /health
+```
+
+Response:
+
+```json
+{
+  "status": "ok"
+}
+```
+
+### Signup
+
+```http
+POST /v1/users/signup
+```
+
+Request:
+
+```json
+{
+  "first_name": "Ada",
+  "last_name": "Okafor",
+  "email": "ada.okafor@example.com",
+  "phone_number": "08012345678",
+  "bvn": "12345678901",
+  "password": "Password123"
+}
+```
+
+Successful response:
+
+```json
+{
+  "status": "success",
+  "message": "Account created successfully.",
+  "data": {
+    "user": {
+      "id": "generated-user-id",
+      "first_name": "Ada",
+      "last_name": "Okafor",
+      "email": "ada.okafor@example.com",
+      "phone_number": "08012345678"
+    },
+    "wallet": {
+      "id": "generated-wallet-id",
+      "account_number": "1234567890",
+      "balance": 0,
+      "currency": "NGN",
+      "status": "active"
+    }
+  }
+}
+```
+
+The response intentionally excludes `password_hash` and `bvn`.
+
+## Database Design
+
+Current tables:
+
+- `users`
+- `wallets`
+- `wallet_transactions`
+- `karma_checks`
+
+Relationships:
+
+```txt
+users 1---1 wallets
+wallets 1---many wallet_transactions
+wallet_transactions 0/1---0/1 wallet_transactions
+wallets 1---many wallet_transactions as counterparty_wallet_id
+users 0/1---many karma_checks
+```
+
+Money is stored as integer minor units. For NGN, that means kobo:
+
+```txt
+NGN 1,000 = 100000 kobo
+```
+
+## Signup Flow
+
+```txt
+1. Validate request body with Zod.
+2. Check for existing user by email, phone number, or BVN.
+3. Check the BVN against Lendsqr Adjutor Karma.
+4. Reject blacklisted users.
+5. Hash password.
+6. Start a database transaction.
+7. Create user.
+8. Create wallet with balance 0.
+9. Store Karma check audit record.
+10. Commit transaction.
+```
+
+If any transactional step fails, the user and wallet creation are rolled back together.
+
+## Security Notes
+
+- Request validation is handled with Zod.
+- Passwords are hashed with Node.js `crypto.scrypt`.
+- Sensitive values are not returned in signup responses.
+- `.env` is ignored by Git.
+- Centralized error middleware avoids leaking raw errors to API clients.
+- Signup fails closed when the Adjutor API key is not configured.
+- Authenticated wallet operations are not implemented yet.
