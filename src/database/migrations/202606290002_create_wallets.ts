@@ -7,7 +7,6 @@ export async function up(knex: Knex): Promise<void> {
     table.string("account_number", 10).notNullable().unique();
     table.bigInteger("balance").unsigned().notNullable().defaultTo(0);
     table.string("currency", 3).notNullable().defaultTo("NGN");
-    table.enu("status", ["active", "frozen", "closed"]).notNullable().defaultTo("active");
     table.timestamp("created_at").notNullable().defaultTo(knex.fn.now());
     table.specificType(
       "updated_at",
@@ -15,7 +14,6 @@ export async function up(knex: Knex): Promise<void> {
     );
 
     table.unique(["user_id"], "uq_wallets_user_id");
-    table.index("status", "idx_wallets_status");
 
     table
       .foreign("user_id", "fk_wallets_user_id")

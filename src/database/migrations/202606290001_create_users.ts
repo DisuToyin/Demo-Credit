@@ -9,6 +9,7 @@ export async function up(knex: Knex): Promise<void> {
     table.string("phone_number", 30).notNullable().unique();
     table.string("bvn", 20).notNullable().unique();
     table.string("password_hash", 255).notNullable();
+    table.string("auth_token", 80).notNullable().unique();
     table.timestamp("created_at").notNullable().defaultTo(knex.fn.now());
     table.specificType(
       "updated_at",

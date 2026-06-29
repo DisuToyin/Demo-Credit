@@ -1,24 +1,24 @@
-import { TransactionsRepository } from "@/modules/transactions/transactions.repository";
+import { TransactionRepository } from "@/modules/transactions/transaction.repository";
 import type {
   ListTransactionsRequestQuery,
   ListTransactionsResult,
   TransactionResponse,
   WalletTransactionRecord,
-} from "@/modules/transactions/transactions.types";
-import { WalletsRepository } from "@/modules/wallets/wallets.repository";
+} from "@/modules/transactions/transaction.types";
+import { WalletRepository } from "@/modules/wallets/wallet.repository";
 import { AppError } from "@/utils/app.error";
 
-export class TransactionsService {
+export class TransactionService {
   public constructor(
-    private readonly transactionsRepository = new TransactionsRepository(),
-    private readonly walletsRepository = new WalletsRepository()
+    private readonly transactionRepository = new TransactionRepository(),
+    private readonly walletRepository = new WalletRepository()
   ) {}
 
   public async listTransactions(
     userId: string,
     query: ListTransactionsRequestQuery
   ): Promise<ListTransactionsResult> {
-    const wallet = await this.walletsRepository.findByUserId(null, userId);
+    const wallet = await this.walletRepository.findByUserId(null, userId);
 
     if (!wallet) {
       throw new AppError("Wallet not found.", 404, "WALLET_NOT_FOUND");
@@ -26,12 +26,12 @@ export class TransactionsService {
 
     const offset = (query.page - 1) * query.limit;
     const [transactions, total] = await Promise.all([
-      this.transactionsRepository.listByWalletId(null, {
+      this.transactionRepository.listByWalletId(null, {
         walletId: wallet.id,
         limit: query.limit,
         offset,
       }),
-      this.transactionsRepository.countByWalletId(null, wallet.id),
+      this.transactionRepository.countByWalletId(null, wallet.id),
     ]);
 
     return {

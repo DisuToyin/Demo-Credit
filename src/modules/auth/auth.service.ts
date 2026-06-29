@@ -13,8 +13,8 @@ import type {
   SignupResult,
 } from "@/modules/auth/auth.types";
 import type { CreateKarmaCheckData } from "@/modules/karma/karma.types";
-import { WalletsRepository } from "@/modules/wallets/wallets.repository";
-import type { CreateWalletData } from "@/modules/wallets/wallets.types";
+import { WalletRepository } from "@/modules/wallets/wallet.repository";
+import type { CreateWalletData } from "@/modules/wallets/wallet.types";
 import { AppError } from "@/utils/app.error";
 import { hashPassword, verifyPassword } from "@/utils/password";
 
@@ -36,7 +36,7 @@ const generateAccountNumberCandidate = (): string => {
 export class AuthService {
   public constructor(
     private readonly authRepository = new AuthRepository(),
-    private readonly walletsRepository = new WalletsRepository(),
+    private readonly walletRepository = new WalletRepository(),
     private readonly karmaRepository = new KarmaRepository(),
     private readonly karmaService = new KarmaService()
   ) {}
@@ -103,7 +103,7 @@ export class AuthService {
       };
 
       await this.authRepository.createUser(trx, user);
-      await this.walletsRepository.create(trx, wallet);
+      await this.walletRepository.create(trx, wallet);
       await this.karmaRepository.createCheck(
         trx,
         this.buildKarmaCheck(userId, payload.bvn, false)
@@ -165,11 +165,11 @@ export class AuthService {
   }
 
   private async generateUniqueAccountNumber(
-    trx: Parameters<WalletsRepository["findByAccountNumber"]>[0]
+    trx: Parameters<WalletRepository["findByAccountNumber"]>[0]
   ): Promise<string> {
     for (let attempt = 0; attempt < ACCOUNT_NUMBER_RETRY_LIMIT; attempt += 1) {
       const accountNumber = generateAccountNumberCandidate();
-      const existingWallet = await this.walletsRepository.findByAccountNumber(
+      const existingWallet = await this.walletRepository.findByAccountNumber(
         trx,
         accountNumber
       );

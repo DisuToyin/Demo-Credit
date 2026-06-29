@@ -1,14 +1,14 @@
 import type { Request, Response } from "express";
 
-import { listTransactionsSchema } from "@/modules/transactions/transactions.validation";
-import { TransactionsService } from "@/modules/transactions/transactions.service";
+import { listTransactionsSchema } from "@/modules/transactions/transaction.validation";
+import { TransactionService } from "@/modules/transactions/transaction.service";
 import { sendSuccess } from "@/utils/api.response";
 import { AppError } from "@/utils/app.error";
 import { validateRequest } from "@/utils/validate.request";
 
-export class TransactionsController {
+export class TransactionController {
   public constructor(
-    private readonly transactionsService = new TransactionsService()
+    private readonly transactionService = new TransactionService()
   ) {}
 
   public listTransactions = async (req: Request, res: Response): Promise<void> => {
@@ -17,7 +17,7 @@ export class TransactionsController {
     }
 
     const { query } = validateRequest(listTransactionsSchema, req);
-    const result = await this.transactionsService.listTransactions(req.user.id, query);
+    const result = await this.transactionService.listTransactions(req.user.id, query);
 
     sendSuccess(res, {
       message: "Transactions retrieved successfully.",

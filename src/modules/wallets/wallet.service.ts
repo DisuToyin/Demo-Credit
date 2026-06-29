@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 
 import { db } from "@/database/knex";
-import { TransactionsRepository } from "@/modules/transactions/transactions.repository";
-import type { CreateWalletTransactionData } from "@/modules/transactions/transactions.types";
-import { WalletsRepository } from "@/modules/wallets/wallets.repository";
+import { TransactionRepository } from "@/modules/transactions/transaction.repository";
+import type { CreateWalletTransactionData } from "@/modules/transactions/transaction.types";
+import { WalletRepository } from "@/modules/wallets/wallet.repository";
 import type {
   FundWalletRequestBody,
   FundWalletResult,
@@ -12,13 +12,13 @@ import type {
   WalletRecord,
   WithdrawWalletRequestBody,
   WithdrawWalletResult,
-} from "@/modules/wallets/wallets.types";
+} from "@/modules/wallets/wallet.types";
 import { AppError } from "@/utils/app.error";
 
-export class WalletsService {
+export class WalletService {
   public constructor(
-    private readonly walletsRepository = new WalletsRepository(),
-    private readonly transactionsRepository = new TransactionsRepository()
+    private readonly walletRepository = new WalletRepository(),
+    private readonly transactionRepository = new TransactionRepository()
   ) {}
 
   public async fundWallet(
@@ -26,7 +26,7 @@ export class WalletsService {
     payload: FundWalletRequestBody
   ): Promise<FundWalletResult> {
     return db.transaction(async (trx) => {
-      const wallet = await this.walletsRepository.findByUserIdForUpdate(trx, userId);
+      const wallet = await this.walletRepository.findByUserIdForUpdate(trx, userId);
 
       if (!wallet) {
         throw new AppError("Wallet not found.", 404, "WALLET_NOT_FOUND");
@@ -42,11 +42,11 @@ export class WalletsService {
         payload.description ?? null
       );
 
-      await this.walletsRepository.updateBalance(trx, {
+      await this.walletRepository.updateBalance(trx, {
         walletId: wallet.id,
         balance: balanceAfter,
       });
-      await this.transactionsRepository.create(trx, transaction);
+      await this.transactionRepository.create(trx, transaction);
 
       return {
         wallet: {
@@ -74,7 +74,7 @@ export class WalletsService {
     payload: WithdrawWalletRequestBody
   ): Promise<WithdrawWalletResult> {
     return db.transaction(async (trx) => {
-      const wallet = await this.walletsRepository.findByUserIdForUpdate(trx, userId);
+      const wallet = await this.walletRepository.findByUserIdForUpdate(trx, userId);
 
       if (!wallet) {
         throw new AppError("Wallet not found.", 404, "WALLET_NOT_FOUND");
@@ -95,11 +95,11 @@ export class WalletsService {
         payload.description ?? null
       );
 
-      await this.walletsRepository.updateBalance(trx, {
+      await this.walletRepository.updateBalance(trx, {
         walletId: wallet.id,
         balance: balanceAfter,
       });
-      await this.transactionsRepository.create(trx, transaction);
+      await this.transactionRepository.create(trx, transaction);
 
       return {
         wallet: {
@@ -127,7 +127,7 @@ export class WalletsService {
     payload: TransferFundsRequestBody
   ): Promise<TransferFundsResult> {
     return db.transaction(async (trx) => {
-      const wallets = await this.walletsRepository.findTransferWalletsForUpdate(trx, {
+      const wallets = await this.walletRepository.findTransferWalletsForUpdate(trx, {
         senderUserId: userId,
         recipientAccountNumber: payload.recipient_account_number,
       });
@@ -187,17 +187,17 @@ export class WalletsService {
         description
       );
 
-      await this.walletsRepository.updateBalance(trx, {
+      await this.walletRepository.updateBalance(trx, {
         walletId: senderWallet.id,
         balance: senderBalanceAfter,
       });
-      await this.walletsRepository.updateBalance(trx, {
+      await this.walletRepository.updateBalance(trx, {
         walletId: recipientWallet.id,
         balance: recipientBalanceAfter,
       });
-      await this.transactionsRepository.create(trx, debitTransaction);
-      await this.transactionsRepository.create(trx, creditTransaction);
-      await this.transactionsRepository.updateRelatedTransactionId(trx, {
+      await this.transactionRepository.create(trx, debitTransaction);
+      await this.transactionRepository.create(trx, creditTransaction);
+      await this.transactionRepository.updateRelatedTransactionId(trx, {
         transactionId: debitTransaction.id,
         relatedTransactionId: creditTransaction.id,
       });

@@ -5,9 +5,9 @@ import type {
   CreateWalletTransactionData,
   ListWalletTransactionsData,
   WalletTransactionRecord,
-} from "@/modules/transactions/transactions.types";
+} from "@/modules/transactions/transaction.types";
 
-export class TransactionsRepository {
+export class TransactionRepository {
   public constructor(private readonly knexInstance: Knex = db) {}
 
   public async create(

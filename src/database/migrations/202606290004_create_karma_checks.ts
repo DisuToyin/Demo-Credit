@@ -7,8 +7,6 @@ export async function up(knex: Knex): Promise<void> {
     table.string("identity_type", 30).notNullable();
     table.string("identity_value", 100).notNullable();
     table.boolean("is_blacklisted").notNullable();
-    table.string("provider", 50).notNullable().defaultTo("lendsqr_adjutor");
-    table.json("provider_response").nullable();
     table.timestamp("checked_at").notNullable().defaultTo(knex.fn.now());
     table.timestamp("created_at").notNullable().defaultTo(knex.fn.now());
 

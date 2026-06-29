@@ -6,9 +6,9 @@ import type {
   FindTransferWalletsData,
   UpdateWalletBalanceData,
   WalletRecord,
-} from "@/modules/wallets/wallets.types";
+} from "@/modules/wallets/wallet.types";
 
-export class WalletsRepository {
+export class WalletRepository {
   public constructor(private readonly knexInstance: Knex = db) {}
 
   public async findByAccountNumber(

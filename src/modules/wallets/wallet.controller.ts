@@ -4,14 +4,14 @@ import {
   fundWalletSchema,
   transferFundsSchema,
   withdrawWalletSchema,
-} from "@/modules/wallets/wallets.validation";
-import { WalletsService } from "@/modules/wallets/wallets.service";
+} from "@/modules/wallets/wallet.validation";
+import { WalletService } from "@/modules/wallets/wallet.service";
 import { sendSuccess } from "@/utils/api.response";
 import { AppError } from "@/utils/app.error";
 import { validateRequest } from "@/utils/validate.request";
 
-export class WalletsController {
-  public constructor(private readonly walletsService = new WalletsService()) {}
+export class WalletController {
+  public constructor(private readonly walletService = new WalletService()) {}
 
   public fundWallet = async (req: Request, res: Response): Promise<void> => {
     if (!req.user) {
@@ -19,7 +19,7 @@ export class WalletsController {
     }
 
     const { body } = validateRequest(fundWalletSchema, req);
-    const result = await this.walletsService.fundWallet(req.user.id, body);
+    const result = await this.walletService.fundWallet(req.user.id, body);
 
     sendSuccess(res, {
       message: "Wallet funded successfully.",
@@ -33,7 +33,7 @@ export class WalletsController {
     }
 
     const { body } = validateRequest(withdrawWalletSchema, req);
-    const result = await this.walletsService.withdrawFunds(req.user.id, body);
+    const result = await this.walletService.withdrawFunds(req.user.id, body);
 
     sendSuccess(res, {
       message: "Withdrawal successful.",
@@ -47,7 +47,7 @@ export class WalletsController {
     }
 
     const { body } = validateRequest(transferFundsSchema, req);
-    const result = await this.walletsService.transferFunds(req.user.id, body);
+    const result = await this.walletService.transferFunds(req.user.id, body);
 
     sendSuccess(res, {
       message: "Transfer successful.",
