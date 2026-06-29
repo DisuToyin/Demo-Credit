@@ -29,26 +29,9 @@ This project is currently an in-progress implementation of a basic wallet system
 - Centralized error response middleware
 - Reusable success response helper
 - Zod request validation
+- OpenAPI documentation with Swagger UI
 - Path aliases with `@/*`
 
-## Project Structure
-
-```txt
-src/
-  config/
-  database/
-    migrations/
-  middlewares/
-  modules/
-    health/
-    karma/
-    transactions/
-    wallets/
-  routes/
-  utils/
-  app.ts
-  server.ts
-```
 
 ## Setup
 
@@ -107,297 +90,41 @@ npm run db:seed:make -- seed_name
 
 Knex uses `knexfile.ts`, and migrations are TypeScript files under `src/database/migrations`.
 
+## API Documentation
+
+After starting the development server, open the Swagger UI:
+
+```txt
+http://localhost:5000/docs
+```
+
+The raw OpenAPI document is also available at:
+
+```txt
+http://localhost:5000/docs.json
+```
+
+The source OpenAPI file lives at `docs/openapi.yaml`.
+
 ## API Endpoints
 
-### Health Check
+Full request and response schemas are documented in Swagger. This README keeps only the quick endpoint map:
+
+- `GET /health`
+- `POST /auth/signup`
+- `POST /auth/signin`
+- `POST /wallets/fund`
+- `POST /wallets/transfer`
+- `POST /wallets/withdraw`
+- `GET /transactions?page=1&limit=20`
+
+Wallet mutation endpoints and transaction history require:
 
 ```http
-GET /health
-```
-
-Response:
-
-```json
-{
-  "status": "ok"
-}
-```
-
-### Signup
-
-```http
-POST /auth/signup
-```
-
-Request:
-
-```json
-{
-  "first_name": "Ada",
-  "last_name": "Okafor",
-  "email": "ada.okafor@example.com",
-  "phone_number": "08012345678",
-  "bvn": "12345678901",
-  "password": "Password123"
-}
-```
-
-Successful response:
-
-```json
-{
-  "status": "success",
-  "message": "Account created successfully.",
-  "data": {
-    "user": {
-      "id": "generated-user-id",
-      "first_name": "Ada",
-      "last_name": "Okafor",
-      "email": "ada.okafor@example.com",
-      "phone_number": "08012345678"
-    },
-    "wallet": {
-      "id": "generated-wallet-id",
-      "account_number": "1234567890",
-      "balance": 0,
-      "currency": "NGN"
-    },
-    "token": "demo_generated_auth_token"
-  }
-}
-```
-
-The response intentionally excludes `password_hash` and `bvn`. The returned `token` is the faux authentication token for protected endpoints.
-
-### Signin
-
-```http
-POST /auth/signin
-```
-
-Request:
-
-```json
-{
-  "email": "ada.okafor@example.com",
-  "password": "Password123"
-}
-```
-
-Successful response:
-
-```json
-{
-  "status": "success",
-  "message": "Signin successful.",
-  "data": {
-    "user": {
-      "id": "generated-user-id",
-      "first_name": "Ada",
-      "last_name": "Okafor",
-      "email": "ada.okafor@example.com",
-      "phone_number": "08012345678"
-    },
-    "token": "demo_rotated_auth_token"
-  }
-}
-```
-
-Signin verifies the stored password hash, rotates the faux auth token, and returns the new token.
-
-### Fund Wallet
-
-```http
-POST /wallets/fund
 Authorization: Bearer demo_generated_auth_token
 ```
 
-Request:
-
-```json
-{
-  "amount": 500000,
-  "description": "Test wallet funding"
-}
-```
-
-Successful response:
-
-```json
-{
-  "status": "success",
-  "message": "Wallet funded successfully.",
-  "data": {
-    "wallet": {
-      "id": "generated-wallet-id",
-      "account_number": "1234567890",
-      "balance": 500000,
-      "currency": "NGN"
-    },
-    "transaction": {
-      "id": "generated-transaction-id",
-      "type": "fund",
-      "amount": 500000,
-      "balance_before": 0,
-      "balance_after": 500000,
-      "reference": "FND_generated-reference",
-      "status": "successful",
-      "description": "Test wallet funding"
-    }
-  }
-}
-```
-
-`amount` is sent in kobo. Funding locks the authenticated user's wallet, updates the wallet balance, and creates a wallet transaction record in one database transaction.
-
-### Transfer Funds
-
-```http
-POST /wallets/transfer
-Authorization: Bearer demo_generated_auth_token
-```
-
-Request:
-
-```json
-{
-  "recipient_account_number": "1234567891",
-  "amount": 200000,
-  "description": "Test transfer"
-}
-```
-
-Successful response:
-
-```json
-{
-  "status": "success",
-  "message": "Transfer successful.",
-  "data": {
-    "sender_wallet": {
-      "id": "sender-wallet-id",
-      "account_number": "1234567890",
-      "balance": 300000,
-      "currency": "NGN"
-    },
-    "recipient_wallet": {
-      "id": "recipient-wallet-id",
-      "account_number": "1234567891",
-      "currency": "NGN"
-    },
-    "transactions": {
-      "debit": {
-        "id": "sender-transaction-id",
-        "type": "transfer_out",
-        "amount": 200000,
-        "balance_before": 500000,
-        "balance_after": 300000,
-        "reference": "TRO_generated-reference",
-        "status": "successful",
-        "description": "Test transfer"
-      },
-      "credit": {
-        "id": "recipient-transaction-id",
-        "type": "transfer_in",
-        "amount": 200000,
-        "balance_before": 0,
-        "balance_after": 200000,
-        "reference": "TRI_generated-reference",
-        "status": "successful",
-        "description": "Test transfer"
-      }
-    }
-  }
-}
-```
-
-Transfers lock the sender and recipient wallets, reject self-transfers, check the sender's available balance, update both wallet balances, and create linked debit and credit transaction records in one database transaction.
-
-### Withdraw Funds
-
-```http
-POST /wallets/withdraw
-Authorization: Bearer demo_generated_auth_token
-```
-
-Request:
-
-```json
-{
-  "amount": 200000,
-  "description": "Test withdrawal"
-}
-```
-
-Successful response:
-
-```json
-{
-  "status": "success",
-  "message": "Withdrawal successful.",
-  "data": {
-    "wallet": {
-      "id": "generated-wallet-id",
-      "account_number": "1234567890",
-      "balance": 300000,
-      "currency": "NGN"
-    },
-    "transaction": {
-      "id": "generated-transaction-id",
-      "type": "withdrawal",
-      "amount": 200000,
-      "balance_before": 500000,
-      "balance_after": 300000,
-      "reference": "WDR_generated-reference",
-      "status": "successful",
-      "description": "Test withdrawal"
-    }
-  }
-}
-```
-
-`amount` is sent in kobo. Withdrawal locks the authenticated user's wallet, checks available balance, updates the wallet balance, and creates a wallet transaction record in one database transaction.
-
-### Get Transactions
-
-```http
-GET /transactions?page=1&limit=20
-Authorization: Bearer demo_generated_auth_token
-```
-
-Successful response:
-
-```json
-{
-  "status": "success",
-  "message": "Transactions retrieved successfully.",
-  "data": {
-    "pagination": {
-      "page": 1,
-      "limit": 20,
-      "total": 2,
-      "total_pages": 1
-    },
-    "transactions": [
-      {
-        "id": "generated-transaction-id",
-        "type": "withdrawal",
-        "amount": 200000,
-        "balance_before": 500000,
-        "balance_after": 300000,
-        "reference": "WDR_generated-reference",
-        "related_transaction_id": null,
-        "counterparty_wallet_id": null,
-        "status": "successful",
-        "description": "Test withdrawal",
-        "created_at": "2026-06-29T10:00:00.000Z"
-      }
-    ]
-  }
-}
-```
-
-Transactions are scoped to the authenticated user's wallet. `page` and `limit` are optional, and `limit` is capped at 100.
+Wallet amounts are sent as integer minor units. For NGN, that means kobo.
 
 ## Database Design
 
