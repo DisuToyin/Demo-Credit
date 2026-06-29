@@ -50,12 +50,11 @@ export class KarmaService {
     if (response.status === 404) {
       return {
         isBlacklisted: false,
-        providerResponse: null,
       };
     }
 
     const responseBody: unknown = await response.json();
-    const providerResponse = isRecord(responseBody) ? responseBody : null;
+    const responseBodyRecord = isRecord(responseBody) ? responseBody : null;
 
     if (!response.ok) {
       throw new AppError(
@@ -66,8 +65,7 @@ export class KarmaService {
     }
 
     return {
-      isBlacklisted: providerResponse ? isBlacklistedResponse(providerResponse) : false,
-      providerResponse,
+      isBlacklisted: responseBodyRecord ? isBlacklistedResponse(responseBodyRecord) : false,
     };
   }
 }

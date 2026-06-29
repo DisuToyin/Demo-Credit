@@ -65,7 +65,7 @@ export class AuthService {
     if (karmaResult.isBlacklisted) {
       await this.karmaRepository.createCheck(
         null,
-        this.buildKarmaCheck(null, payload.bvn, true, karmaResult.providerResponse)
+        this.buildKarmaCheck(null, payload.bvn, true)
       );
 
       throw new AppError(
@@ -100,14 +100,13 @@ export class AuthService {
         account_number: accountNumber,
         balance: 0,
         currency: "NGN",
-        status: "active",
       };
 
       await this.authRepository.createUser(trx, user);
       await this.walletsRepository.create(trx, wallet);
       await this.karmaRepository.createCheck(
         trx,
-        this.buildKarmaCheck(userId, payload.bvn, false, karmaResult.providerResponse)
+        this.buildKarmaCheck(userId, payload.bvn, false)
       );
 
       return {
@@ -123,7 +122,6 @@ export class AuthService {
           account_number: wallet.account_number,
           balance: wallet.balance,
           currency: wallet.currency,
-          status: wallet.status,
         },
         token: user.auth_token,
       };
@@ -187,8 +185,7 @@ export class AuthService {
   private buildKarmaCheck(
     userId: string | null,
     bvn: string,
-    isBlacklisted: boolean,
-    providerResponse: Record<string, unknown> | null
+    isBlacklisted: boolean
   ): CreateKarmaCheckData {
     return {
       id: randomUUID(),
@@ -196,8 +193,6 @@ export class AuthService {
       identity_type: "bvn",
       identity_value: bvn,
       is_blacklisted: isBlacklisted,
-      provider: "lendsqr_adjutor",
-      provider_response: providerResponse,
     };
   }
 }

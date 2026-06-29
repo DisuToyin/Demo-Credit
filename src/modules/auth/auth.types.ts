@@ -1,5 +1,3 @@
-import type { WalletStatus } from "@/modules/wallets/wallets.types";
-
 export type AuthenticatedUser = {
   id: string;
   first_name: string;
@@ -63,7 +61,6 @@ export type SignupResult = {
     account_number: string;
     balance: number;
     currency: string;
-    status: WalletStatus;
   };
   token: string;
 };

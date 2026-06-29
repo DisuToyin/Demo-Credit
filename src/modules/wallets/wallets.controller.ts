@@ -1,6 +1,9 @@
 import type { Request, Response } from "express";
 
-import { fundWalletSchema } from "@/modules/wallets/wallets.validation";
+import {
+  fundWalletSchema,
+  withdrawWalletSchema,
+} from "@/modules/wallets/wallets.validation";
 import { WalletsService } from "@/modules/wallets/wallets.service";
 import { sendSuccess } from "@/utils/api.response";
 import { AppError } from "@/utils/app.error";
@@ -19,6 +22,20 @@ export class WalletsController {
 
     sendSuccess(res, {
       message: "Wallet funded successfully.",
+      data: result,
+    });
+  };
+
+  public withdrawFunds = async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) {
+      throw new AppError("Authentication token is required.", 401, "UNAUTHENTICATED");
+    }
+
+    const { body } = validateRequest(withdrawWalletSchema, req);
+    const result = await this.walletsService.withdrawFunds(req.user.id, body);
+
+    sendSuccess(res, {
+      message: "Withdrawal successful.",
       data: result,
     });
   };

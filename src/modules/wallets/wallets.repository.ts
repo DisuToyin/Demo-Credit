@@ -23,6 +23,19 @@ export class WalletsRepository {
     return wallet ?? null;
   }
 
+  public async findByUserId(
+    trx: Knex.Transaction | null,
+    userId: string
+  ): Promise<WalletRecord | null> {
+    const query = trx
+      ? trx<WalletRecord>("wallets")
+      : this.knexInstance<WalletRecord>("wallets");
+
+    const wallet = await query.where("user_id", userId).first();
+
+    return wallet ?? null;
+  }
+
   public async findByUserIdForUpdate(
     trx: Knex.Transaction,
     userId: string

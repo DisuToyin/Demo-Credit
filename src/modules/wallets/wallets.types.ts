@@ -1,12 +1,9 @@
-export type WalletStatus = "active" | "frozen" | "closed";
-
 export type WalletRecord = {
   id: string;
   user_id: string;
   account_number: string;
   balance: number;
   currency: string;
-  status: WalletStatus;
   created_at: Date;
   updated_at: Date;
 };
@@ -17,10 +14,14 @@ export type CreateWalletData = {
   account_number: string;
   balance: number;
   currency: string;
-  status: WalletStatus;
 };
 
 export type FundWalletRequestBody = {
+  amount: number;
+  description?: string | undefined;
+};
+
+export type WithdrawWalletRequestBody = {
   amount: number;
   description?: string | undefined;
 };
@@ -30,17 +31,16 @@ export type UpdateWalletBalanceData = {
   balance: number;
 };
 
-export type FundWalletResult = {
+type WalletOperationResult<TType extends "fund" | "withdrawal"> = {
   wallet: {
     id: string;
     account_number: string;
     balance: number;
     currency: string;
-    status: WalletStatus;
   };
   transaction: {
     id: string;
-    type: "fund";
+    type: TType;
     amount: number;
     balance_before: number;
     balance_after: number;
@@ -49,3 +49,7 @@ export type FundWalletResult = {
     description: string | null;
   };
 };
+
+export type FundWalletResult = WalletOperationResult<"fund">;
+
+export type WithdrawWalletResult = WalletOperationResult<"withdrawal">;

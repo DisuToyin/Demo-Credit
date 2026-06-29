@@ -38,3 +38,38 @@ export type CreateWalletTransactionData = {
   status: WalletTransactionStatus;
   description: string | null;
 };
+
+export type ListWalletTransactionsData = {
+  walletId: string;
+  limit: number;
+  offset: number;
+};
+
+export type ListTransactionsRequestQuery = {
+  page: number;
+  limit: number;
+};
+
+export type TransactionResponse = {
+  id: string;
+  type: WalletTransactionType;
+  amount: number;
+  balance_before: number;
+  balance_after: number;
+  reference: string;
+  related_transaction_id: string | null;
+  counterparty_wallet_id: string | null;
+  status: WalletTransactionStatus;
+  description: string | null;
+  created_at: Date;
+};
+
+export type ListTransactionsResult = {
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    total_pages: number;
+  };
+  transactions: TransactionResponse[];
+};

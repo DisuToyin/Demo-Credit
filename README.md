@@ -19,6 +19,8 @@ This project is currently an in-progress implementation of a basic wallet system
 - User signup endpoint
 - User signin endpoint
 - Authenticated wallet funding endpoint
+- Authenticated wallet withdrawal endpoint
+- Authenticated transaction history endpoint
 - Faux token generation during signup
 - Lendsqr Adjutor Karma blacklist check before onboarding
 - User and wallet creation in a single database transaction
@@ -157,8 +159,7 @@ Successful response:
       "id": "generated-wallet-id",
       "account_number": "1234567890",
       "balance": 0,
-      "currency": "NGN",
-      "status": "active"
+      "currency": "NGN"
     },
     "token": "demo_generated_auth_token"
   }
@@ -230,8 +231,7 @@ Successful response:
       "id": "generated-wallet-id",
       "account_number": "1234567890",
       "balance": 500000,
-      "currency": "NGN",
-      "status": "active"
+      "currency": "NGN"
     },
     "transaction": {
       "id": "generated-transaction-id",
@@ -248,6 +248,92 @@ Successful response:
 ```
 
 `amount` is sent in kobo. Funding locks the authenticated user's wallet, updates the wallet balance, and creates a wallet transaction record in one database transaction.
+
+### Withdraw Funds
+
+```http
+POST /wallets/withdraw
+Authorization: Bearer demo_generated_auth_token
+```
+
+Request:
+
+```json
+{
+  "amount": 200000,
+  "description": "Test withdrawal"
+}
+```
+
+Successful response:
+
+```json
+{
+  "status": "success",
+  "message": "Withdrawal successful.",
+  "data": {
+    "wallet": {
+      "id": "generated-wallet-id",
+      "account_number": "1234567890",
+      "balance": 300000,
+      "currency": "NGN"
+    },
+    "transaction": {
+      "id": "generated-transaction-id",
+      "type": "withdrawal",
+      "amount": 200000,
+      "balance_before": 500000,
+      "balance_after": 300000,
+      "reference": "WDR_generated-reference",
+      "status": "successful",
+      "description": "Test withdrawal"
+    }
+  }
+}
+```
+
+`amount` is sent in kobo. Withdrawal locks the authenticated user's wallet, checks available balance, updates the wallet balance, and creates a wallet transaction record in one database transaction.
+
+### Get Transactions
+
+```http
+GET /transactions?page=1&limit=20
+Authorization: Bearer demo_generated_auth_token
+```
+
+Successful response:
+
+```json
+{
+  "status": "success",
+  "message": "Transactions retrieved successfully.",
+  "data": {
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 2,
+      "total_pages": 1
+    },
+    "transactions": [
+      {
+        "id": "generated-transaction-id",
+        "type": "withdrawal",
+        "amount": 200000,
+        "balance_before": 500000,
+        "balance_after": 300000,
+        "reference": "WDR_generated-reference",
+        "related_transaction_id": null,
+        "counterparty_wallet_id": null,
+        "status": "successful",
+        "description": "Test withdrawal",
+        "created_at": "2026-06-29T10:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+Transactions are scoped to the authenticated user's wallet. `page` and `limit` are optional, and `limit` is capped at 100.
 
 ## Database Design
 

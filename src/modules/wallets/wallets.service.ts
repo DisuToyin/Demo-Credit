@@ -8,6 +8,8 @@ import type {
   FundWalletRequestBody,
   FundWalletResult,
   WalletRecord,
+  WithdrawWalletRequestBody,
+  WithdrawWalletResult,
 } from "@/modules/wallets/wallets.types";
 import { AppError } from "@/utils/app.error";
 
@@ -26,10 +28,6 @@ export class WalletsService {
 
       if (!wallet) {
         throw new AppError("Wallet not found.", 404, "WALLET_NOT_FOUND");
-      }
-
-      if (wallet.status !== "active") {
-        throw new AppError("Wallet is not active.", 403, "WALLET_NOT_ACTIVE");
       }
 
       const balanceBefore = Number(wallet.balance);
@@ -54,11 +52,63 @@ export class WalletsService {
           account_number: wallet.account_number,
           balance: balanceAfter,
           currency: wallet.currency,
-          status: wallet.status,
         },
         transaction: {
           id: transaction.id,
           type: "fund",
+          amount: transaction.amount,
+          balance_before: transaction.balance_before,
+          balance_after: transaction.balance_after,
+          reference: transaction.reference,
+          status: "successful",
+          description: transaction.description,
+        },
+      };
+    });
+  }
+
+  public async withdrawFunds(
+    userId: string,
+    payload: WithdrawWalletRequestBody
+  ): Promise<WithdrawWalletResult> {
+    return db.transaction(async (trx) => {
+      const wallet = await this.walletsRepository.findByUserIdForUpdate(trx, userId);
+
+      if (!wallet) {
+        throw new AppError("Wallet not found.", 404, "WALLET_NOT_FOUND");
+      }
+
+      const balanceBefore = Number(wallet.balance);
+
+      if (balanceBefore < payload.amount) {
+        throw new AppError("Insufficient wallet balance.", 400, "INSUFFICIENT_FUNDS");
+      }
+
+      const balanceAfter = balanceBefore - payload.amount;
+      const transaction = this.buildWithdrawalTransaction(
+        wallet,
+        payload.amount,
+        balanceBefore,
+        balanceAfter,
+        payload.description ?? null
+      );
+
+      await this.walletsRepository.updateBalance(trx, {
+        walletId: wallet.id,
+        balance: balanceAfter,
+      });
+      await this.transactionsRepository.create(trx, transaction);
+
+      return {
+        wallet: {
+          id: wallet.id,
+          account_number: wallet.account_number,
+          balance: balanceAfter,
+          currency: wallet.currency,
+        },
+        transaction: {
+          id: transaction.id,
+          type: "withdrawal",
           amount: transaction.amount,
           balance_before: transaction.balance_before,
           balance_after: transaction.balance_after,
@@ -87,6 +137,30 @@ export class WalletsService {
       balance_before: balanceBefore,
       balance_after: balanceAfter,
       reference: `FND_${transactionId}`,
+      related_transaction_id: null,
+      counterparty_wallet_id: null,
+      status: "successful",
+      description,
+    };
+  }
+
+  private buildWithdrawalTransaction(
+    wallet: WalletRecord,
+    amount: number,
+    balanceBefore: number,
+    balanceAfter: number,
+    description: string | null
+  ): CreateWalletTransactionData {
+    const transactionId = randomUUID();
+
+    return {
+      id: transactionId,
+      wallet_id: wallet.id,
+      type: "withdrawal",
+      amount,
+      balance_before: balanceBefore,
+      balance_after: balanceAfter,
+      reference: `WDR_${transactionId}`,
       related_transaction_id: null,
       counterparty_wallet_id: null,
       status: "successful",
