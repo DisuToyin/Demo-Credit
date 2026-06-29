@@ -1,9 +1,9 @@
 import { Router } from "express";
 
-import { usersRouter } from "@/modules/users/users.routes";
+import { authRouter } from "@/modules/auth/auth.routes";
 import { healthRouter } from "@/modules/health/health.routes";
 
 export const routes = Router();
 
-routes.use("/users", usersRouter);
+routes.use("/auth", authRouter);
 routes.use(healthRouter);

@@ -12,7 +12,10 @@ export const signupSchema = z.object({
       .trim()
       .min(1, "last_name is required.")
       .max(100, "last_name must not exceed 100 characters."),
-    email: z.email("email must be a valid email address.")
+    email: z
+      .email("email must be a valid email address.")
+      .trim()
+      .toLowerCase()
       .max(255, "email must not exceed 255 characters."),
     phone_number: z
       .string()
@@ -26,4 +29,19 @@ export const signupSchema = z.object({
   }),
 });
 
+export const signinSchema = z.object({
+  body: z.object({
+    email: z
+      .email("email must be a valid email address.")
+      .trim()
+      .toLowerCase()
+      .max(255, "email must not exceed 255 characters."),
+    password: z
+      .string()
+      .min(1, "password is required.")
+      .max(72, "password must not exceed 72 characters."),
+  }),
+});
+
 export type SignupSchema = z.infer<typeof signupSchema>;
+export type SigninSchema = z.infer<typeof signinSchema>;

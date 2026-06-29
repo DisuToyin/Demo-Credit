@@ -1,20 +1,25 @@
-import { randomInt, randomUUID } from "node:crypto";
+import { randomBytes, randomInt, randomUUID } from "node:crypto";
 
 import { db } from "@/database/knex";
+import { AuthRepository } from "@/modules/auth/auth.repository";
 import { KarmaRepository } from "@/modules/karma/karma.repository";
 import { KarmaService } from "@/modules/karma/karma.service";
-import { UsersRepository } from "@/modules/users/users.repository";
-import { WalletsRepository } from "@/modules/wallets/wallets.repository";
-import { AppError } from "@/utils/app.error";
-import { hashPassword } from "@/utils/password";
-import type { CreateKarmaCheckData } from "@/modules/karma/karma.types";
 import type {
+  AuthenticatedUser,
   CreateUserData,
+  SigninRequestBody,
+  SigninResult,
   SignupRequestBody,
   SignupResult,
-} from "@/modules/users/users.types";
+} from "@/modules/auth/auth.types";
+import type { CreateKarmaCheckData } from "@/modules/karma/karma.types";
+import { WalletsRepository } from "@/modules/wallets/wallets.repository";
 import type { CreateWalletData } from "@/modules/wallets/wallets.types";
+import { AppError } from "@/utils/app.error";
+import { hashPassword, verifyPassword } from "@/utils/password";
 
+const TOKEN_PREFIX = "demo";
+const TOKEN_BYTE_LENGTH = 32;
 const ACCOUNT_NUMBER_LENGTH = 10;
 const ACCOUNT_NUMBER_RETRY_LIMIT = 10;
 
@@ -28,16 +33,20 @@ const generateAccountNumberCandidate = (): string => {
   return accountNumber;
 };
 
-export class UsersService {
+export class AuthService {
   public constructor(
-    private readonly usersRepository = new UsersRepository(),
+    private readonly authRepository = new AuthRepository(),
     private readonly walletsRepository = new WalletsRepository(),
     private readonly karmaRepository = new KarmaRepository(),
     private readonly karmaService = new KarmaService()
   ) {}
 
+  public generateToken(): string {
+    return `${TOKEN_PREFIX}_${randomBytes(TOKEN_BYTE_LENGTH).toString("hex")}`;
+  }
+
   public async signup(payload: SignupRequestBody): Promise<SignupResult> {
-    const existingUser = await this.usersRepository.findByUniqueFields(
+    const existingUser = await this.authRepository.findByUniqueFields(
       payload.email,
       payload.phone_number,
       payload.bvn
@@ -67,6 +76,7 @@ export class UsersService {
     }
 
     const passwordHash = await hashPassword(payload.password);
+    const authToken = this.generateToken();
     const userId = randomUUID();
     const walletId = randomUUID();
 
@@ -81,6 +91,7 @@ export class UsersService {
         phone_number: payload.phone_number,
         bvn: payload.bvn,
         password_hash: passwordHash,
+        auth_token: authToken,
       };
 
       const wallet: CreateWalletData = {
@@ -92,11 +103,11 @@ export class UsersService {
         status: "active",
       };
 
-      await this.usersRepository.createUser(trx, user);
+      await this.authRepository.createUser(trx, user);
       await this.walletsRepository.create(trx, wallet);
       await this.karmaRepository.createCheck(
         trx,
-        this.buildKarmaCheck(userId, payload.bvn, false, karmaResult.providerResponse),
+        this.buildKarmaCheck(userId, payload.bvn, false, karmaResult.providerResponse)
       );
 
       return {
@@ -114,8 +125,45 @@ export class UsersService {
           currency: wallet.currency,
           status: wallet.status,
         },
+        token: user.auth_token,
       };
     });
+  }
+
+  public async signin(payload: SigninRequestBody): Promise<SigninResult> {
+    const user = await this.authRepository.findByEmail(payload.email);
+
+    if (!user) {
+      throw new AppError("Invalid email or password.", 401, "INVALID_CREDENTIALS");
+    }
+
+    const passwordIsValid = await verifyPassword(payload.password, user.password_hash);
+
+    if (!passwordIsValid) {
+      throw new AppError("Invalid email or password.", 401, "INVALID_CREDENTIALS");
+    }
+
+    const token = this.generateToken();
+
+    await this.authRepository.updateAuthToken(null, {
+      userId: user.id,
+      authToken: token,
+    });
+
+    return {
+      user: this.toAuthenticatedUser(user),
+      token,
+    };
+  }
+
+  private toAuthenticatedUser(user: AuthenticatedUser): AuthenticatedUser {
+    return {
+      id: user.id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      email: user.email,
+      phone_number: user.phone_number,
+    };
   }
 
   private async generateUniqueAccountNumber(

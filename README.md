@@ -17,6 +17,8 @@ This project is currently an in-progress implementation of a basic wallet system
 
 - Health check endpoint
 - User signup endpoint
+- User signin endpoint
+- Faux token generation during signup
 - Lendsqr Adjutor Karma blacklist check before onboarding
 - User and wallet creation in a single database transaction
 - TypeScript Knex configuration and migrations
@@ -36,7 +38,6 @@ src/
   modules/
     health/
     karma/
-    users/
     wallets/
   routes/
   utils/
@@ -120,7 +121,7 @@ Response:
 ### Signup
 
 ```http
-POST /v1/users/signup
+POST /auth/signup
 ```
 
 Request:
@@ -156,14 +157,53 @@ Successful response:
       "balance": 0,
       "currency": "NGN",
       "status": "active"
-    }
+    },
+    "token": "demo_generated_auth_token"
   }
 }
 ```
 
-The response intentionally excludes `password_hash` and `bvn`.
+The response intentionally excludes `password_hash` and `bvn`. The returned `token` is the faux authentication token for protected endpoints.
+
+### Signin
+
+```http
+POST /auth/signin
+```
+
+Request:
+
+```json
+{
+  "email": "ada.okafor@example.com",
+  "password": "Password123"
+}
+```
+
+Successful response:
+
+```json
+{
+  "status": "success",
+  "message": "Signin successful.",
+  "data": {
+    "user": {
+      "id": "generated-user-id",
+      "first_name": "Ada",
+      "last_name": "Okafor",
+      "email": "ada.okafor@example.com",
+      "phone_number": "08012345678"
+    },
+    "token": "demo_rotated_auth_token"
+  }
+}
+```
+
+Signin verifies the stored password hash, rotates the faux auth token, and returns the new token.
 
 ## Database Design
+
+![Demo Credit database design](docs/images/demo-credit.png)
 
 Current tables:
 
@@ -174,13 +214,6 @@ Current tables:
 
 Relationships:
 
-```txt
-users 1---1 wallets
-wallets 1---many wallet_transactions
-wallet_transactions 0/1---0/1 wallet_transactions
-wallets 1---many wallet_transactions as counterparty_wallet_id
-users 0/1---many karma_checks
-```
 
 Money is stored as integer minor units. For NGN, that means kobo:
 
@@ -205,6 +238,18 @@ NGN 1,000 = 100000 kobo
 
 If any transactional step fails, the user and wallet creation are rolled back together.
 
+## Faux Authentication
+
+Signup generates a random faux auth token and stores it on the user record.
+
+Protected endpoints should receive the token through the `Authorization` header:
+
+```http
+Authorization: Bearer demo_generated_auth_token
+```
+
+The auth middleware validates the token, loads the authenticated user, and attaches the user to the Express request. Protected endpoints should use the authenticated request user instead of accepting `user_id` from request bodies.
+
 ## Security Notes
 
 - Request validation is handled with Zod.
@@ -213,4 +258,4 @@ If any transactional step fails, the user and wallet creation are rolled back to
 - `.env` is ignored by Git.
 - Centralized error middleware avoids leaking raw errors to API clients.
 - Signup fails closed when the Adjutor API key is not configured.
-- Authenticated wallet operations are not implemented yet.
+- Faux auth tokens are stored for assessment simplicity. In production, this should be replaced with short-lived tokens, refresh tokens, expiry, and revocation.
