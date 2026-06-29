@@ -18,6 +18,7 @@ This project is currently an in-progress implementation of a basic wallet system
 - Health check endpoint
 - User signup endpoint
 - User signin endpoint
+- Authenticated wallet funding endpoint
 - Faux token generation during signup
 - Lendsqr Adjutor Karma blacklist check before onboarding
 - User and wallet creation in a single database transaction
@@ -38,6 +39,7 @@ src/
   modules/
     health/
     karma/
+    transactions/
     wallets/
   routes/
   utils/
@@ -200,6 +202,52 @@ Successful response:
 ```
 
 Signin verifies the stored password hash, rotates the faux auth token, and returns the new token.
+
+### Fund Wallet
+
+```http
+POST /wallets/fund
+Authorization: Bearer demo_generated_auth_token
+```
+
+Request:
+
+```json
+{
+  "amount": 500000,
+  "description": "Test wallet funding"
+}
+```
+
+Successful response:
+
+```json
+{
+  "status": "success",
+  "message": "Wallet funded successfully.",
+  "data": {
+    "wallet": {
+      "id": "generated-wallet-id",
+      "account_number": "1234567890",
+      "balance": 500000,
+      "currency": "NGN",
+      "status": "active"
+    },
+    "transaction": {
+      "id": "generated-transaction-id",
+      "type": "fund",
+      "amount": 500000,
+      "balance_before": 0,
+      "balance_after": 500000,
+      "reference": "FND_generated-reference",
+      "status": "successful",
+      "description": "Test wallet funding"
+    }
+  }
+}
+```
+
+`amount` is sent in kobo. Funding locks the authenticated user's wallet, updates the wallet balance, and creates a wallet transaction record in one database transaction.
 
 ## Database Design
 

@@ -167,13 +167,13 @@ export class AuthService {
   }
 
   private async generateUniqueAccountNumber(
-    trx: Parameters<WalletsRepository["findByAccountNumber"]>[1]
+    trx: Parameters<WalletsRepository["findByAccountNumber"]>[0]
   ): Promise<string> {
     for (let attempt = 0; attempt < ACCOUNT_NUMBER_RETRY_LIMIT; attempt += 1) {
       const accountNumber = generateAccountNumberCandidate();
       const existingWallet = await this.walletsRepository.findByAccountNumber(
-        accountNumber,
-        trx
+        trx,
+        accountNumber
       );
 
       if (!existingWallet) {
