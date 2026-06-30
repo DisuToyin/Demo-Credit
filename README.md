@@ -2,7 +2,7 @@
 
 Demo Credit wallet service built with Node.js, TypeScript, Express, Knex, and MySQL.
 
-This project is currently an in-progress implementation of a basic wallet system. The foundation, database schema, health endpoint, signup flow, Karma blacklist check, and wallet creation during onboarding have been implemented.
+This project implements the Demo Credit wallet MVP. It supports user onboarding, Karma blacklist checks, faux token authentication, wallet funding, wallet withdrawals, wallet-to-wallet transfers, and transaction history.
 
 ## Tech Stack
 
@@ -12,26 +12,6 @@ This project is currently an in-progress implementation of a basic wallet system
 - MySQL
 - Knex
 - Zod
-
-## Current Features
-
-- Health check endpoint
-- User signup endpoint
-- User signin endpoint
-- Authenticated wallet funding endpoint
-- Authenticated wallet transfer endpoint
-- Authenticated wallet withdrawal endpoint
-- Authenticated transaction history endpoint
-- Faux token generation during signup
-- Lendsqr Adjutor Karma blacklist check before onboarding
-- User and wallet creation in a single database transaction
-- TypeScript Knex configuration and migrations
-- Centralized error response middleware
-- Reusable success response helper
-- Zod request validation
-- OpenAPI documentation with Swagger UI
-- Path aliases with `@/*`
-
 
 ## Setup
 
@@ -74,6 +54,7 @@ ADJUTOR_API_KEY=
 
 ```bash
 npm run dev
+npm test
 npm run build
 npm start
 ```
@@ -89,6 +70,26 @@ npm run db:seed:make -- seed_name
 ```
 
 Knex uses `knexfile.ts`, and migrations are TypeScript files under `src/database/migrations`.
+
+## Testing
+
+Run the unit test suite:
+
+```bash
+npm test
+```
+
+The tests cover:
+
+- Auth service signup and signin flows
+- Wallet funding, withdrawal, and transfer behavior
+- Transaction history pagination and response mapping
+- Lendsqr Adjutor Karma lookup behavior
+- Request validation schemas
+- Authentication and error middleware
+- Password hashing and verification utilities
+
+Test files live under `tests/` so production source files remain focused on application logic.
 
 ## API Documentation
 
@@ -126,6 +127,16 @@ Authorization: Bearer demo_generated_auth_token
 
 Wallet amounts are sent as integer minor units. For NGN, that means kobo.
 
+## Design Decisions
+
+- Wallet mutations run inside database transactions so balance changes and transaction records succeed or fail together.
+- Wallet transfers create two linked ledger records: `transfer_out` for the sender and `transfer_in` for the recipient.
+- Wallet rows are locked during balance-changing operations to reduce race conditions.
+- Signup validates the request with Zod, checks for duplicate identity fields, checks Lendsqr Adjutor Karma, hashes the password, then creates the user, wallet, auth token, and Karma audit record in a controlled flow.
+- A faux bearer token is used for assessment scope instead of a full production auth system. Signup generates the token, stores it on the user record, and protected endpoints receive it through the `Authorization` header.
+- The auth middleware validates the stored token, loads the authenticated user, and attaches the user to the Express request so protected endpoints do not accept `user_id` from request bodies.
+- Controllers only handle HTTP concerns; services contain business rules; repositories handle database access.
+
 ## Database Design
 
 ![Demo Credit database design](docs/images/demo-credit.png)
@@ -139,41 +150,7 @@ Current tables:
 
 Relationships:
 
-
-Money is stored as integer minor units. For NGN, that means kobo:
-
-```txt
-NGN 1,000 = 100000 kobo
-```
-
-## Signup Flow
-
-```txt
-1. Validate request body with Zod.
-2. Check for existing user by email, phone number, or BVN.
-3. Check the BVN against Lendsqr Adjutor Karma.
-4. Reject blacklisted users.
-5. Hash password.
-6. Start a database transaction.
-7. Create user.
-8. Create wallet with balance 0.
-9. Store Karma check audit record.
-10. Commit transaction.
-```
-
-If any transactional step fails, the user and wallet creation are rolled back together.
-
-## Faux Authentication
-
-Signup generates a random faux auth token and stores it on the user record.
-
-Protected endpoints should receive the token through the `Authorization` header:
-
-```http
-Authorization: Bearer demo_generated_auth_token
-```
-
-The auth middleware validates the token, loads the authenticated user, and attaches the user to the Express request. Protected endpoints should use the authenticated request user instead of accepting `user_id` from request bodies.
+Each user owns one wallet. Each wallet owns many wallet transaction records. Karma checks optionally reference a user, allowing failed blacklist checks to be recorded before a user exists.
 
 ## Security Notes
 
@@ -182,5 +159,4 @@ The auth middleware validates the token, loads the authenticated user, and attac
 - Sensitive values are not returned in signup responses.
 - `.env` is ignored by Git.
 - Centralized error middleware avoids leaking raw errors to API clients.
-- Signup fails closed when the Adjutor API key is not configured.
-- Faux auth tokens are stored for assessment simplicity. In production, this should be replaced with short-lived tokens, refresh tokens, expiry, and revocation.
+- Faux auth tokens are stored for assessment simplicity.
