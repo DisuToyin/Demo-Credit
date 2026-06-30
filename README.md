@@ -4,6 +4,12 @@ Demo Credit wallet service built with Node.js, TypeScript, Express, Knex, and My
 
 This project implements the Demo Credit wallet MVP. It supports user onboarding, Karma blacklist checks, faux token authentication, wallet funding, wallet withdrawals, wallet-to-wallet transfers, and transaction history.
 
+Production URL:
+
+```txt
+https://disu-oluwatoyin-lendsqr-be-test.onrender.com
+```
+
 ## Tech Stack
 
 - Node.js
