@@ -10,6 +10,10 @@ Production URL:
 https://disu-oluwatoyin-lendsqr-be-test.onrender.com
 ```
 
+## Assessment Report
+
+Security and failure-handling notes are documented in [SECURITY_REPORT.md](SECURITY_REPORT.md).
+
 ## Tech Stack
 
 - Node.js
@@ -113,9 +117,7 @@ http://localhost:5000/docs.json
 
 The source OpenAPI file lives at `docs/openapi.yaml`.
 
-## Assessment Report
 
-Security and failure-handling notes are documented in [SECURITY_REPORT.md](SECURITY_REPORT.md).
 
 ## API Endpoints
 
