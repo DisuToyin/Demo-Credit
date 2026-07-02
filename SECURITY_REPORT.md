@@ -47,6 +47,8 @@ For production, I would replace faux auth tokens with a stronger authentication 
 
 I would add rate limiting to sensitive endpoints such as signup, signin, fund, withdraw, and transfer to reduce brute-force attempts, signup abuse, and repeated financial-operation abuse. I would also tighten CORS to allow only trusted frontend origins.
 
+I would add stronger identity verification during onboarding. Email addresses should be verified to confirm that the user controls the email used for the account. Phone numbers should also be verified to reduce fake signups and improve account recovery security. BVN verification should confirm that the BVN is valid and that the name attached to the BVN closely matches the name provided to Demo Credit. This reduces impersonation risk and makes it harder for a user to onboard with another person's identity.
+
 For wallet operations, I would add audit logs that record who performed each balance-changing action, the request context, and the before-and-after state. I would also add idempotency keys for fund, withdraw, and transfer requests to reduce duplicate processing when clients retry failed requests.
 
 For monitoring, I would add structured request logs, correlation IDs, centralized log storage, uptime checks, alerts for repeated failed authentication attempts, alerts for wallet operation failures, and metrics for latency, error rates, failed signups, and database failures.
@@ -74,9 +76,14 @@ For logging and monitoring in a production version, I would add structured reque
 
 
 ### Example of a Possible Failure Scenario and How I Would Diagnose and Fix It
-Scenario: a wallet transfer fails after debiting the sender but before crediting the recipient.
+Scenario 1: the deployed API returns an internal server error, and the server logs show `Acquire connection error: Error: getaddrinfo ENOTFOUND mysql-xyz-unknown-this-is-the-host.b.aivencloud.com`.
+
+To diagnose this, I would first check the deployment logs to identify the real backend error behind the generic internal server error. The `getaddrinfo ENOTFOUND` message means the application could not resolve the configured database hostname, so I would verify the database host value in the deployment environment and then check the database provider dashboard to confirm that the database service is powered on and healthy. In the recent production issue, the managed database had been powered off, so the application could not resolve or connect to the database host.
+
+The fix is to power the database back on, confirm that the host and port are unchanged, wait for the service to become healthy, and retry the API request. For production reliability, I would add uptime monitoring for both the API and database, plus alerts for database connection failures so this type of issue is detected quickly.
+
+Scenario 2: a wallet transfer fails after debiting the sender but before crediting the recipient.
 
 To diagnose this, I would check the API response error code, inspect application logs for the request, verify both wallet balances in the database, and check whether linked `transfer_out` and `transfer_in` records were created. If the rollback worked correctly, there should be no partial transfer state.
 
 The implementation mitigates this by running transfer operations inside a database transaction. If any step fails, the transaction rolls back and the sender's balance, recipient's balance, and transaction records are not partially persisted.
-
