@@ -4,6 +4,8 @@ info:
   version: 1.0.0
   description: API documentation for the Demo Credit wallet service.
 servers:
+  - url: /
+    description: Current server
   - url: http://localhost:5000
     description: Local development server
 tags:
